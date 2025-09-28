@@ -1,3 +1,4 @@
+    
 import { Client } from "@elastic/elasticsearch";
 
 class ElasticsearchService {
@@ -48,10 +49,16 @@ class ElasticsearchService {
         }
     }
 
-    async addBook({ title, author, year }) {
-        return this.client.index({
-            index: "books",
-            document: { title, author, year },
+    async addBooks(books) {
+        // books is expected to be an array of objects: [{ title, author, year }, ...]
+        const operations = books.flatMap(doc => [
+            { index: { _index: "books" } },
+            doc
+        ]);
+
+        return this.client.bulk({
+            refresh: true, // auto refresh index after insert (optional)
+            operations,
         });
     }
 
@@ -66,6 +73,10 @@ class ElasticsearchService {
                 match: { title: title || "" },
             },
         });
+    }
+
+    async getBooksMapping() {
+        return this.client.indices.getMapping({ index: "books" });
     }
 
     async deleteBookById(id) {

@@ -2,12 +2,21 @@ import express from "express";
 import elasticsearchService from "../services/elasticsearch-service.js";
 
 class BooksController {
-  async addBook(req, res) {
+  async addBooks(req, res) {
     try {
-      const { title, author, year } = req.body;
-      const result = await elasticsearchService.addBook({ title, author, year });
-      await elasticsearchService.refreshBooksIndex();
-      res.status(201).json({ result });
+      let books = req.body;
+
+      // Normalize: allow sending single object or array
+      if (!Array.isArray(books)) {
+        books = [books];
+      }
+
+      const result = await elasticsearchService.addBooks(books);
+
+      res.status(201).json({
+        message: `${books.length} book(s) indexed successfully`,
+        result,
+      });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -18,6 +27,15 @@ class BooksController {
       const { title } = req.query;
       const result = await elasticsearchService.searchBooks(title);
       res.json(result.hits.hits);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async getBooksMapping(req, res) {
+    try {
+      const mapping = await elasticsearchService.getBooksMapping();
+      res.json(mapping);
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -48,8 +66,9 @@ class BooksController {
 const booksController = new BooksController();
 const router = express.Router();
 
-router.post("/books", (req, res) => booksController.addBook(req, res));
+router.post("/books", (req, res) => booksController.addBooks(req, res));
 router.get("/books", (req, res) => booksController.searchBooks(req, res));
+router.get("/books/mapping", (req, res) => booksController.getBooksMapping(req, res));
 
 router.put("/books/:id", (req, res) => booksController.updateBook(req, res));
 router.delete("/books/:id", (req, res) => booksController.deleteBook(req, res));
